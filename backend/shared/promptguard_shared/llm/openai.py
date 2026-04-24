@@ -1,5 +1,5 @@
 import openai
-from typing import Optional, Any
+from typing import Any
 from .base import LLMClient, LLMResponse
 
 

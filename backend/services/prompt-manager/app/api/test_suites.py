@@ -11,7 +11,7 @@ from app.core.oidc import Principal, get_current_principal
 from app.core.limiter import limiter
 from app.core.audit import log_action
 from app.models import TestSuite, Prompt, Schema
-from app.schemas import TestSuiteCreate, TestSuiteUpdate, TestSuiteInDB, TestInput
+from app.schemas import TestSuiteCreate, TestSuiteUpdate, TestSuiteInDB
 
 router = APIRouter(dependencies=[Depends(verify_api_key)])
 

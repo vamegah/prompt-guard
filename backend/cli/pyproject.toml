@@ -12,7 +12,7 @@ readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
     "click>=8.1",
-    "promptguard-shared @ file://../shared"
+    "promptguard-shared @ file:backend/shared"
 ]
 
 [project.scripts]

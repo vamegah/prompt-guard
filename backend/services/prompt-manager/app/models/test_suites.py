@@ -5,7 +5,6 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.models.test_suite import TestSuite
 from app.repositories.test_suite import TestSuiteRepository
 
 # Assuming you have Pydantic schemas for request/response bodies

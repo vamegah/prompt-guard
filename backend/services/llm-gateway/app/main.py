@@ -1,5 +1,4 @@
 import time
-import httpx
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.responses import Response

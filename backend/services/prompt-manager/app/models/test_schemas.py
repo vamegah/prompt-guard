@@ -1,5 +1,5 @@
 import pytest
-from uuid import uuid4, UUID
+from uuid import uuid4
 from datetime import datetime
 from unittest.mock import AsyncMock
 

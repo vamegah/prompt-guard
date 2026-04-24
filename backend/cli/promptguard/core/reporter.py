@@ -1,6 +1,4 @@
-import json
 import xml.etree.ElementTree as ET
-from typing import Union
 from promptguard_shared.models.result import ValidationReport
 
 

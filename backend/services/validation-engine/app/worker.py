@@ -3,7 +3,6 @@ import json
 import time
 from typing import Any, Dict
 
-import httpx
 from prometheus_client import Counter, Histogram
 from redis.asyncio import Redis
 

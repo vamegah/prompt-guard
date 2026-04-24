@@ -1,6 +1,5 @@
-import json
 import jsonschema
-from typing import Any, Dict, List
+from typing import Any, Dict
 from .base import ValidationResult
 
 

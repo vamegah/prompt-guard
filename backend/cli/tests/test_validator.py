@@ -1,6 +1,5 @@
 import pytest
 import json
-from pathlib import Path
 from click.testing import CliRunner
 
 from promptguard.cli import cli
