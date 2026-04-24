@@ -1,0 +1,208 @@
+# Global settings
+global:
+  environment: production
+  imagePullSecrets: []
+  imageRegistry: docker.io
+  imagePullPolicy: IfNotPresent
+
+# PostgreSQL
+postgresql:
+  enabled: true
+  image: postgres:15-alpine
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  persistence:
+    enabled: true
+    size: 8Gi
+  env:
+    POSTGRES_USER: promptguard
+    POSTGRES_PASSWORD: promptguard
+    POSTGRES_DB: promptguard
+
+# Redis
+redis:
+  enabled: true
+  image: redis:7-alpine
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "100m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+  persistence:
+    enabled: true
+    size: 1Gi
+
+# Prompt Manager Service
+promptManager:
+  enabled: true
+  image: promptguard/prompt-manager:latest
+  replicaCount: 2
+  service:
+    type: ClusterIP
+    port: 8000
+  readinessPath: /health
+  livenessPath: /health
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  env:
+    DATABASE_URL: "postgresql+asyncpg://promptguard:promptguard@{{ include \"promptguard.fullname\" . }}-postgres:5432/promptguard"
+    REDIS_URL: "redis://{{ include \"promptguard.fullname\" . }}-redis:6379/0"
+    CORS_ORIGINS: '["https://app.promptguard.io"]'
+    API_KEY: "local-api-key"
+    MASTER_KEY: "bM0_lDGcE4JKmlriOaJZf3Dg1mujn2v0Im4QLuDxtmk="
+    INTERNAL_API_KEY: "local-internal-key"
+    ENVIRONMENT: "production"
+    SIEM_WEBHOOK_URL: ""
+    SIEM_API_KEY: ""
+    AUDIT_RETENTION_ENABLED: "true"
+    AUDIT_RETENTION_DAYS: "90"
+    AUDIT_RETENTION_INTERVAL_HOURS: "24"
+    SECRET_ROTATION_ENABLED: "true"
+    SECRET_ROTATION_INTERVAL_HOURS: "24"
+    SECRET_BACKEND: "fernet"
+    VAULT_ADDR: ""
+    VAULT_TOKEN: ""
+    VAULT_NAMESPACE: ""
+    VAULT_TRANSIT_MOUNT: "transit"
+    VAULT_TRANSIT_KEY: ""
+    AWS_REGION: ""
+    AWS_KMS_KEY_ID: ""
+    AWS_KMS_ENCRYPTION_CONTEXT: ""
+  secretEnv: []
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+# Validation Engine
+validationEngine:
+  enabled: true
+  image: promptguard/validation-engine:latest
+  replicaCount: 2
+  workerReplicaCount: 2
+  readinessPath: /health
+  livenessPath: /health
+  resources:
+    requests:
+      memory: "512Mi"
+      cpu: "500m"
+    limits:
+      memory: "1Gi"
+      cpu: "1000m"
+  env:
+    REDIS_URL: "redis://{{ include \"promptguard.fullname\" . }}-redis:6379/0"
+    LLM_GATEWAY_URL: "http://{{ include \"promptguard.fullname\" . }}-llm-gateway:8002/api/v1/generate"
+    ANALYTICS_URL: "http://{{ include \"promptguard.fullname\" . }}-analytics:8003/api/v1/metrics"
+    OPENAI_API_KEY: ""
+    ANTHROPIC_API_KEY: ""
+    INTERNAL_API_KEY: "local-internal-key"
+    AUDIT_URL: "http://{{ include \"promptguard.fullname\" . }}-prompt-manager:8000/api/v1/audit-logs/ingest"
+    AUDIT_API_KEY: "local-api-key"
+    INTERNAL_CA_BUNDLE: ""
+    INTERNAL_CLIENT_CERT: ""
+    INTERNAL_CLIENT_KEY: ""
+  secretEnv: []
+
+# LLM Gateway
+llmGateway:
+  enabled: true
+  image: promptguard/llm-gateway:latest
+  replicaCount: 2
+  service:
+    type: ClusterIP
+    port: 8002
+  readinessPath: /health
+  livenessPath: /health
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  env:
+    REDIS_URL: "redis://{{ include \"promptguard.fullname\" . }}-redis:6379/1"
+    OPENAI_API_KEY: ""
+    ANTHROPIC_API_KEY: ""
+    BILLING_URL: "http://{{ include \"promptguard.fullname\" . }}-prompt-manager:8000/api/v1/billing/usage"
+    BILLING_API_KEY: "local-api-key"
+    INTERNAL_API_KEY: "local-internal-key"
+    ENVIRONMENT: "production"
+    REQUIRE_ORG_SCOPED_KEYS: "true"
+    PROMPT_MANAGER_URL: "http://{{ include \"promptguard.fullname\" . }}-prompt-manager:8000"
+    PROMPT_MANAGER_INTERNAL_KEY: "local-internal-key"
+    AUDIT_URL: "http://{{ include \"promptguard.fullname\" . }}-prompt-manager:8000/api/v1/audit-logs/ingest"
+    AUDIT_API_KEY: "local-api-key"
+    INTERNAL_CA_BUNDLE: ""
+    INTERNAL_CLIENT_CERT: ""
+    INTERNAL_CLIENT_KEY: ""
+  secretEnv: []
+  autoscaling:
+    enabled: false
+    minReplicas: 2
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+# Analytics Service
+analytics:
+  enabled: true
+  image: promptguard/analytics:latest
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 8003
+  readinessPath: /health
+  livenessPath: /health
+  resources:
+    requests:
+      memory: "256Mi"
+      cpu: "250m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  env:
+    REDIS_URL: "redis://{{ include \"promptguard.fullname\" . }}-redis:6379/0"
+    INTERNAL_API_KEY: "local-internal-key"
+    AUDIT_URL: "http://{{ include \"promptguard.fullname\" . }}-prompt-manager:8000/api/v1/audit-logs/ingest"
+    AUDIT_API_KEY: "local-api-key"
+    INTERNAL_CA_BUNDLE: ""
+    INTERNAL_CLIENT_CERT: ""
+    INTERNAL_CLIENT_KEY: ""
+  secretEnv: []
+
+# Ingress
+ingress:
+  enabled: true
+  className: nginx
+  hosts:
+    - host: api.promptguard.io
+      paths:
+        - path: /api/prompts
+          pathType: Prefix
+          service: prompt-manager
+          port: 8000
+        - path: /api/llm
+          pathType: Prefix
+          service: llm-gateway
+          port: 8002
+        - path: /api/analytics
+          pathType: Prefix
+          service: analytics
+          port: 8003
+  tls:
+    - secretName: promptguard-tls
+      hosts:
+        - api.promptguard.io

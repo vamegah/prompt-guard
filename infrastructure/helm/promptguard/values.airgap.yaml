@@ -1,0 +1,20 @@
+global:
+  imagePullPolicy: IfNotPresent
+
+promptManager:
+  image: local-registry/promptguard-prompt-manager:latest
+
+validationEngine:
+  image: local-registry/promptguard-validation-engine:latest
+
+llmGateway:
+  image: local-registry/promptguard-llm-gateway:latest
+
+analytics:
+  image: local-registry/promptguard-analytics:latest
+
+postgresql:
+  image: local-registry/postgres:15-alpine
+
+redis:
+  image: local-registry/redis:7-alpine

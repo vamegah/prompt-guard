@@ -1,0 +1,22 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+  - /etc/prometheus/alert_rules.yml
+
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+scrape_configs:
+  - job_name: "promptguard-services"
+    metrics_path: /metrics
+    static_configs:
+      - targets:
+          - prompt-manager:8000
+          - llm-gateway:8002
+          - validation-api:8001
+          - analytics:8003

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "promptguard-cli"
+version = "0.1.0"
+description = "CLI tool for validating LLM prompts against schemas"
+authors = [{name = "PromptGuard Team", email = "team@promptguard.io"}]
+license = {text = "MIT"}
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "click>=8.1",
+    "promptguard-shared @ file://../shared"
+]
+
+[project.scripts]
+promptguard = "promptguard.cli:cli"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["promptguard*"]

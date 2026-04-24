@@ -1,0 +1,231 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: promptguard-postgres
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      POSTGRES_USER: ${POSTGRES_USER:-promptguard}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-promptguard}
+      POSTGRES_DB: ${POSTGRES_DB:-promptguard}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-promptguard}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - promptguard-network
+
+  redis:
+    image: redis:7-alpine
+    container_name: promptguard-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - promptguard-network
+
+  prompt-manager:
+    build:
+      context: .
+      dockerfile: services/prompt-manager/Dockerfile
+    image: promptguard/prompt-manager:local
+    container_name: promptguard-prompt-manager
+    ports:
+      - "${PROMPT_MANAGER_PORT:-8000}:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-promptguard}:${POSTGRES_PASSWORD:-promptguard}@postgres:5432/${POSTGRES_DB:-promptguard}
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
+      API_KEY: ${API_KEY:-local-api-key}
+      MASTER_KEY: ${MASTER_KEY:-bM0_lDGcE4JKmlriOaJZf3Dg1mujn2v0Im4QLuDxtmk=}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-local-internal-key}
+      SIEM_WEBHOOK_URL: ${SIEM_WEBHOOK_URL:-}
+      SIEM_API_KEY: ${SIEM_API_KEY:-}
+      AUDIT_RETENTION_ENABLED: ${AUDIT_RETENTION_ENABLED:-true}
+      AUDIT_RETENTION_DAYS: ${AUDIT_RETENTION_DAYS:-90}
+      AUDIT_RETENTION_INTERVAL_HOURS: ${AUDIT_RETENTION_INTERVAL_HOURS:-24}
+      SECRET_ROTATION_ENABLED: ${SECRET_ROTATION_ENABLED:-true}
+      SECRET_ROTATION_INTERVAL_HOURS: ${SECRET_ROTATION_INTERVAL_HOURS:-24}
+      SECRET_BACKEND: ${SECRET_BACKEND:-fernet}
+      VAULT_ADDR: ${VAULT_ADDR:-}
+      VAULT_TOKEN: ${VAULT_TOKEN:-}
+      VAULT_NAMESPACE: ${VAULT_NAMESPACE:-}
+      VAULT_TRANSIT_MOUNT: ${VAULT_TRANSIT_MOUNT:-transit}
+      VAULT_TRANSIT_KEY: ${VAULT_TRANSIT_KEY:-}
+      AWS_REGION: ${AWS_REGION:-}
+      AWS_KMS_KEY_ID: ${AWS_KMS_KEY_ID:-}
+      AWS_KMS_ENCRYPTION_CONTEXT: ${AWS_KMS_ENCRYPTION_CONTEXT:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8000/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - promptguard-network
+
+  validation-api:
+    build:
+      context: .
+      dockerfile: services/validation-engine/Dockerfile
+    image: promptguard/validation-engine:local
+    container_name: promptguard-validation-api
+    ports:
+      - "${VALIDATION_API_PORT:-8001}:8001"
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      LLM_GATEWAY_URL: http://llm-gateway:8002/api/v1/generate
+      ANALYTICS_URL: http://analytics:8003/api/v1/metrics
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-local-internal-key}
+      INTERNAL_CA_BUNDLE: ${INTERNAL_CA_BUNDLE:-}
+      INTERNAL_CLIENT_CERT: ${INTERNAL_CLIENT_CERT:-}
+      INTERNAL_CLIENT_KEY: ${INTERNAL_CLIENT_KEY:-}
+      AUDIT_URL: http://prompt-manager:8000/api/v1/audit-logs/ingest
+      AUDIT_API_KEY: ${API_KEY:-local-api-key}
+      PYTHONPATH: /shared
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8001/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - promptguard-network
+
+  validation-worker:
+    image: promptguard/validation-engine:local
+    container_name: promptguard-validation-worker
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      LLM_GATEWAY_URL: http://llm-gateway:8002/api/v1/generate
+      ANALYTICS_URL: http://analytics:8003/api/v1/metrics
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-local-internal-key}
+      INTERNAL_CA_BUNDLE: ${INTERNAL_CA_BUNDLE:-}
+      INTERNAL_CLIENT_CERT: ${INTERNAL_CLIENT_CERT:-}
+      INTERNAL_CLIENT_KEY: ${INTERNAL_CLIENT_KEY:-}
+      AUDIT_URL: http://prompt-manager:8000/api/v1/audit-logs/ingest
+      AUDIT_API_KEY: ${API_KEY:-local-api-key}
+      PYTHONPATH: /shared
+    depends_on:
+      redis:
+        condition: service_healthy
+    command: python -m app.worker
+    networks:
+      - promptguard-network
+
+  llm-gateway:
+    build:
+      context: .
+      dockerfile: services/llm-gateway/Dockerfile
+    image: promptguard/llm-gateway:local
+    container_name: promptguard-llm-gateway
+    ports:
+      - "${LLM_GATEWAY_PORT:-8002}:8002"
+    environment:
+      ENVIRONMENT: ${ENVIRONMENT:-production}
+      REQUIRE_ORG_SCOPED_KEYS: ${REQUIRE_ORG_SCOPED_KEYS:-true}
+      REDIS_URL: redis://redis:6379/1
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-local-internal-key}
+      INTERNAL_CA_BUNDLE: ${INTERNAL_CA_BUNDLE:-}
+      INTERNAL_CLIENT_CERT: ${INTERNAL_CLIENT_CERT:-}
+      INTERNAL_CLIENT_KEY: ${INTERNAL_CLIENT_KEY:-}
+      BILLING_URL: http://prompt-manager:8000/api/v1/billing/usage
+      BILLING_API_KEY: ${API_KEY:-local-api-key}
+      PROMPT_MANAGER_URL: http://prompt-manager:8000
+      PROMPT_MANAGER_INTERNAL_KEY: ${INTERNAL_API_KEY:-local-internal-key}
+      AUDIT_URL: http://prompt-manager:8000/api/v1/audit-logs/ingest
+      AUDIT_API_KEY: ${API_KEY:-local-api-key}
+      PYTHONPATH: /shared
+    depends_on:
+      redis:
+        condition: service_healthy
+      prompt-manager:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8002/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - promptguard-network
+
+  analytics:
+    build:
+      context: .
+      dockerfile: services/analytics/Dockerfile
+    image: promptguard/analytics:local
+    container_name: promptguard-analytics
+    ports:
+      - "${ANALYTICS_PORT:-8003}:8003"
+    environment:
+      INTERNAL_API_KEY: ${INTERNAL_API_KEY:-local-internal-key}
+      INTERNAL_CA_BUNDLE: ${INTERNAL_CA_BUNDLE:-}
+      INTERNAL_CLIENT_CERT: ${INTERNAL_CLIENT_CERT:-}
+      INTERNAL_CLIENT_KEY: ${INTERNAL_CLIENT_KEY:-}
+      AUDIT_URL: http://prompt-manager:8000/api/v1/audit-logs/ingest
+      AUDIT_API_KEY: ${API_KEY:-local-api-key}
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:8003/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - promptguard-network
+
+  backup:
+    image: postgres:15-alpine
+    container_name: promptguard-backup
+    environment:
+      PGHOST: postgres
+      PGPORT: 5432
+      PGUSER: ${POSTGRES_USER:-promptguard}
+      PGPASSWORD: ${POSTGRES_PASSWORD:-promptguard}
+      PGDATABASE: ${POSTGRES_DB:-promptguard}
+      BACKUP_INTERVAL_HOURS: ${BACKUP_INTERVAL_HOURS:-24}
+      BACKUP_DIR: /backups
+      S3_BUCKET: ${BACKUP_S3_BUCKET:-}
+      VERIFY_RESTORE: ${BACKUP_VERIFY_RESTORE:-false}
+    volumes:
+      - ../scripts/ops/backup.sh:/usr/local/bin/backup.sh:ro
+      - backups_data:/backups
+    entrypoint: ["sh", "/usr/local/bin/backup.sh"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - promptguard-network
+
+volumes:
+  postgres_data:
+  redis_data:
+  backups_data:
+
+networks:
+  promptguard-network:
+    name: promptguard-network
+    driver: bridge

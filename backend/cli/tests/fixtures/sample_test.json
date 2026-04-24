@@ -1,0 +1,11 @@
+{
+  "tests": [
+    {
+      "name": "Test basic prompt",
+      "prompt": "What is 2+2?",
+      "expected": {
+        "contains": "4"
+      }
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+services:
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: promptguard-prometheus
+    ports:
+      - "${PROMETHEUS_PORT:-9090}:9090"
+    volumes:
+      - ../infrastructure/monitoring/prometheus.compose.yml:/etc/prometheus/prometheus.yml:ro
+      - ../infrastructure/monitoring/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro
+    networks:
+      - promptguard-network
+
+  alertmanager:
+    image: prom/alertmanager:latest
+    container_name: promptguard-alertmanager
+    ports:
+      - "${ALERTMANAGER_PORT:-9093}:9093"
+    volumes:
+      - ../infrastructure/monitoring/alertmanager.yml:/etc/alertmanager/alertmanager.yml:ro
+    networks:
+      - promptguard-network
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: promptguard-grafana
+    ports:
+      - "${GRAFANA_PORT:-3001}:3000"
+    environment:
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+    volumes:
+      - ../infrastructure/monitoring/grafana-datasources.compose.yml:/etc/grafana/provisioning/datasources/datasources.yml:ro
+    depends_on:
+      - prometheus
+    networks:
+      - promptguard-network
+
+networks:
+  promptguard-network:
+    external: true

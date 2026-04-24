@@ -1,0 +1,88 @@
+{{- if .Values.analytics.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "promptguard.fullname" . }}-analytics
+  labels:
+    {{- include "promptguard.componentLabels" (dict "component" "analytics" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  type: {{ .Values.analytics.service.type }}
+  ports:
+    - port: {{ .Values.analytics.service.port }}
+      targetPort: 8003
+      name: http
+  selector:
+    app.kubernetes.io/component: analytics
+    app.kubernetes.io/instance: {{ .Release.Name }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "promptguard.fullname" . }}-analytics
+  labels:
+    {{- include "promptguard.componentLabels" (dict "component" "analytics" "Release" .Release "Chart" .Chart) | nindent 4 }}
+spec:
+  replicas: {{ .Values.analytics.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: analytics
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        {{- include "promptguard.componentLabels" (dict "component" "analytics" "Release" .Release "Chart" .Chart) | nindent 8 }}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/path: "/metrics"
+        prometheus.io/port: "8003"
+    spec:
+      containers:
+        - name: analytics
+          image: {{ .Values.analytics.image }}
+          imagePullPolicy: {{ .Values.global.imagePullPolicy | default "IfNotPresent" }}
+          ports:
+            - containerPort: 8003
+              name: http
+          env:
+            {{- range $key, $value := .Values.analytics.env }}
+            - name: {{ $key }}
+              value: {{ tpl $value $ | quote }}
+            {{- end }}
+            {{- range .Values.analytics.secretEnv }}
+            - name: {{ .name }}
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .secretName }}
+                  key: {{ .key }}
+            {{- end }}
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.analytics.readinessPath }}
+              port: 8003
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.analytics.livenessPath }}
+              port: 8003
+            initialDelaySeconds: 10
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.analytics.resources | nindent 12 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "promptguard.fullname" . }}-analytics
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/component: analytics
+      app.kubernetes.io/instance: {{ .Release.Name }}
+{{- end }}

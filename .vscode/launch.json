@@ -1,0 +1,64 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "CLI: Validate",
+      "type": "python",
+      "request": "launch",
+      "module": "promptguard.cli",
+      "args": ["validate", "-p", "sample/prompt.txt", "-s", "sample/schema.json", "-t", "sample/tests.json"],
+      "cwd": "${workspaceFolder}/backend/cli",
+      "console": "integratedTerminal",
+      "justMyCode": true
+    },
+    {
+      "name": "Prompt Manager",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["app.main:app", "--reload"],
+      "cwd": "${workspaceFolder}/backend/services/prompt-manager",
+      "console": "integratedTerminal",
+      "env": {
+        "DATABASE_URL": "postgresql+asyncpg://promptguard:promptguard@localhost:5432/promptguard",
+        "REDIS_URL": "redis://localhost:6379/0"
+      }
+    },
+    {
+      "name": "LLM Gateway",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["app.main:app", "--reload", "--port", "8001"],
+      "cwd": "${workspaceFolder}/backend/services/llm-gateway",
+      "console": "integratedTerminal",
+      "env": {
+        "REDIS_URL": "redis://localhost:6379/0"
+      }
+    },
+    {
+      "name": "Analytics",
+      "type": "python",
+      "request": "launch",
+      "module": "uvicorn",
+      "args": ["app.main:app", "--reload", "--port", "8002"],
+      "cwd": "${workspaceFolder}/backend/services/analytics",
+      "console": "integratedTerminal",
+      "env": {
+        "DATABASE_URL": "postgresql+asyncpg://promptguard:promptguard@localhost:5432/promptguard",
+        "REDIS_URL": "redis://localhost:6379/0"
+      }
+    },
+    {
+      "name": "Frontend",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:3000",
+      "webRoot": "${workspaceFolder}/frontend/src",
+      "preLaunchTask": "npm: dev",
+      "sourceMapPathOverrides": {
+        "webpack:///src/*": "${webRoot}/*"
+      }
+    }
+  ]
+}

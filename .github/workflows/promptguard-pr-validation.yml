@@ -1,0 +1,19 @@
+name: PromptGuard PR validation
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  promptguard-validation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Run PromptGuard validation action
+        uses: ./.github/actions/promptguard-validation
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          prompt-file: prompt.txt
+          schema-file: schema.json
+          tests-file: tests.json
+          provider: openai
+          output-format: text

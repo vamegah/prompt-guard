@@ -1,0 +1,39 @@
+groups:
+  - name: promptguard.rules
+    rules:
+      - alert: PromptManagerDown
+        expr: up{job="promptguard-services"} == 0
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Service down"
+          description: "A PromptGuard service is unreachable for more than 2 minutes."
+
+      - alert: HighErrorRate
+        expr: |
+          sum(rate(prompt_manager_requests_total{path="/health"}[5m])) == 0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "No health traffic"
+          description: "No /health requests observed in the last 5 minutes."
+
+      - alert: SecretRotationStale
+        expr: (time() - promptguard_secret_rotation_last_success_timestamp) > 86400
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Secret rotation job stale"
+          description: "Secret rotation/rewrap has not succeeded in over 24 hours."
+
+      - alert: AuditRetentionStale
+        expr: (time() - promptguard_audit_retention_last_success_timestamp) > 86400
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Audit retention job stale"
+          description: "Audit retention has not succeeded in over 24 hours."
