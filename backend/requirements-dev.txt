@@ -1,5 +1,5 @@
 -r requirements.txt
--e ./shared
+-e file:backend/shared
 httpx==0.28.1
 pytest-cov==4.1.0
 pytest-asyncio==0.21.1
