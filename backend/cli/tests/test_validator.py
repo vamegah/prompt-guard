@@ -5,6 +5,7 @@ from click.testing import CliRunner
 from promptguard.cli import cli
 from promptguard.core.runner import ValidationRunner
 from promptguard_shared.models.result import ValidationReport, PromptTestResult
+from promptguard_shared.validation.schema_validator import SchemaValidator
 
 
 # We'll create fixtures in a conftest.py or here
@@ -103,6 +104,76 @@ def test_validate_command_with_positional_args(sample_files, monkeypatch):
     assert data["total_failed"] == 1
 
 
+def test_validate_command_reports_missing_provider_key(sample_files, monkeypatch):
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    runner = CliRunner()
+    prompt_file, schema_file, tests_file = sample_files
+    result = runner.invoke(
+        cli,
+        [
+            "validate",
+            str(prompt_file),
+            str(schema_file),
+            str(tests_file),
+        ],
+    )
+
+    assert result.exit_code == 1
+    assert "API key for openai not found" in result.output
+
+
+def test_validate_command_supports_anthropic_with_string_inputs(tmp_path, monkeypatch):
+    prompt_file = tmp_path / "prompt.txt"
+    prompt_file.write_text("Summarize: {{input}}")
+
+    schema_file = tmp_path / "schema.json"
+    schema_file.write_text(json.dumps({"type": "string"}))
+
+    tests_file = tmp_path / "tests.json"
+    tests_file.write_text(json.dumps(["alpha", "beta"]))
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "fake-key")
+    captured = {}
+
+    async def mock_run(self):
+        captured["provider"] = self.provider
+        captured["test_inputs"] = self.test_inputs
+        return ValidationReport(
+            test_case_id="test",
+            results=[
+                PromptTestResult(test_input_id="0", passed=True, errors=[]),
+                PromptTestResult(test_input_id="1", passed=True, errors=[]),
+            ],
+            total_passed=2,
+            total_failed=0,
+            duration_ms=100,
+            metadata={},
+        )
+
+    monkeypatch.setattr(ValidationRunner, "run", mock_run)
+
+    runner = CliRunner()
+    result = runner.invoke(
+        cli,
+        [
+            "validate",
+            str(prompt_file),
+            str(schema_file),
+            str(tests_file),
+            "--provider",
+            "anthropic",
+            "--output-format",
+            "json",
+        ],
+    )
+
+    assert result.exit_code == 0
+    assert captured["provider"] == "anthropic"
+    assert captured["test_inputs"][0].input_data == {"input": "alpha"}
+    assert json.loads(result.output)["total_passed"] == 2
+
+
 def test_load_test_inputs_supports_string_array(tmp_path):
     from promptguard.utils.file_loader import load_test_inputs
 
@@ -113,3 +184,27 @@ def test_load_test_inputs_supports_string_array(tmp_path):
     assert len(test_inputs) == 2
     assert test_inputs[0].input_data == {"input": "Hello world"}
     assert test_inputs[1].input_data == {"input": "Goodbye"}
+
+
+def test_schema_validator_parses_json_object_response():
+    validator = SchemaValidator(
+        {
+            "type": "object",
+            "required": ["answer"],
+            "properties": {"answer": {"type": "string"}},
+        }
+    )
+
+    result = validator.validate('{"answer": "Bonjour"}')
+
+    assert result.passed is True
+    assert result.errors == []
+
+
+def test_schema_validator_reports_invalid_json_for_object_schema():
+    validator = SchemaValidator({"type": "object"})
+
+    result = validator.validate("not json")
+
+    assert result.passed is False
+    assert result.errors[0].startswith("Response is not valid JSON")

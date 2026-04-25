@@ -2,7 +2,7 @@ import time
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Header, Depends
 from fastapi.responses import Response
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, Histogram
+from prometheus_client import REGISTRY, generate_latest, CONTENT_TYPE_LATEST, Counter, Histogram
 from redis.asyncio import Redis
 
 from app.clients.registry import Provider, get_client_factory
@@ -15,16 +15,22 @@ from app.schemas.llm import LLMGenerateRequest, LLMGenerateResponse
 
 
 redis_client: Redis | None = None
-REQUEST_COUNTER = Counter(
-    "llm_gateway_requests_total",
-    "Total LLM gateway requests",
-    ["provider", "status"],
-)
-REQUEST_LATENCY = Histogram(
-    "llm_gateway_request_latency_seconds",
-    "LLM gateway request latency in seconds",
-    ["provider"],
-)
+if "llm_gateway_requests_total" in REGISTRY._names_to_collectors:
+    REQUEST_COUNTER = REGISTRY._names_to_collectors["llm_gateway_requests_total"]
+else:
+    REQUEST_COUNTER = Counter(
+        "llm_gateway_requests_total",
+        "Total LLM gateway requests",
+        ["provider", "status"],
+    )
+if "llm_gateway_request_latency_seconds" in REGISTRY._names_to_collectors:
+    REQUEST_LATENCY = REGISTRY._names_to_collectors["llm_gateway_request_latency_seconds"]
+else:
+    REQUEST_LATENCY = Histogram(
+        "llm_gateway_request_latency_seconds",
+        "LLM gateway request latency in seconds",
+        ["provider"],
+    )
 
 
 @asynccontextmanager

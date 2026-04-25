@@ -1,8 +1,18 @@
+import sys
+from pathlib import Path
+import importlib
+
 import pytest
 from unittest.mock import AsyncMock
 
 from fastapi import FastAPI
-from httpx import AsyncClient
+from httpx import AsyncClient, ASGITransport
+
+base = Path(__file__).resolve().parents[2]
+base_path = str(base)
+if base_path in sys.path:
+    sys.path.remove(base_path)
+sys.path.insert(0, base_path)
 
 # The context shows endpoint files in the 'models' directory, which is unusual.
 # We'll follow that structure for imports. If you move them to `app/api/endpoints`,
@@ -26,12 +36,12 @@ def app() -> FastAPI:
 
 
 @pytest.fixture
-async def client(app: FastAPI) -> AsyncClient:
+def client(app: FastAPI) -> AsyncClient:
     """
     Fixture to create an httpx.AsyncClient for making requests to the test app.
     """
-    async with AsyncClient(app=app, base_url="http://test") as ac:
-        yield ac
+    transport = ASGITransport(app=app)
+    return AsyncClient(transport=transport, base_url="http://test")
 
 
 @pytest.fixture
@@ -44,9 +54,15 @@ def mock_repo_factory(monkeypatch):
 
     def _mock_repo(repo_class_path: str, repo_spec):
         mock_repo = AsyncMock(spec=repo_spec)
+        module_path, attr_name = repo_class_path.rsplit(".", 1)
+        target_module = importlib.import_module(module_path)
         # The lambda ensures that when the endpoint code calls `Repository(db)`,
         # it gets our mock instance instead of creating a new real one.
-        monkeypatch.setattr(repo_class_path, lambda db_session: mock_repo)
+        factory = lambda db_session: mock_repo
+        monkeypatch.setattr(target_module, attr_name, factory)
+        for mounted_module in (prompts, schemas, test_suites):
+            if hasattr(mounted_module, attr_name):
+                monkeypatch.setattr(mounted_module, attr_name, factory)
         return mock_repo
 
     return _mock_repo

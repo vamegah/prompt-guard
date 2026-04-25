@@ -1,11 +1,11 @@
 import httpx
 import pytest
 
-from app.main import app
-
 
 @pytest.mark.asyncio
 async def test_adversarial_generation(set_env):
+    from app.main import app
+
     await app.router.startup()
     try:
         transport = httpx.ASGITransport(app=app)
@@ -13,6 +13,7 @@ async def test_adversarial_generation(set_env):
             resp = await client.post(
                 "/api/v1/adversarial",
                 json={"base_inputs": [{"input": "hello"}], "count_per_input": 2},
+                headers={"X-Internal-Key": "internal-key"},
             )
             assert resp.status_code == 200
             data = resp.json()

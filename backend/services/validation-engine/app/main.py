@@ -2,7 +2,7 @@ import json
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Depends
 from fastapi.responses import Response
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter
+from prometheus_client import REGISTRY, generate_latest, CONTENT_TYPE_LATEST, Counter
 from redis.asyncio import Redis
 
 from app.core.config import settings
@@ -19,11 +19,14 @@ from promptguard_shared.testing.adversarial import generate_adversarial_inputs
 
 
 redis_client: Redis | None = None
-ENQUEUE_COUNTER = Counter(
-    "validation_enqueue_total",
-    "Total validation jobs enqueued",
-    ["type"],
-)
+if "validation_enqueue_total" in REGISTRY._names_to_collectors:
+    ENQUEUE_COUNTER = REGISTRY._names_to_collectors["validation_enqueue_total"]
+else:
+    ENQUEUE_COUNTER = Counter(
+        "validation_enqueue_total",
+        "Total validation jobs enqueued",
+        ["type"],
+    )
 
 
 @asynccontextmanager

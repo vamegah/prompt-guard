@@ -39,9 +39,6 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
@@ -59,12 +56,13 @@ runs:
       continue-on-error: true
       shell: bash
       run: |
+        set -o pipefail
         mkdir -p promptguard-output
-        MODEL_ARGS=""
+        MODEL_ARGS=()
         if [ -n "${{ inputs.model }}" ]; then
-          MODEL_ARGS="--model '${{ inputs.model }}'"
+          MODEL_ARGS=(--model "${{ inputs.model }}")
         fi
-        promptguard validate "${{ inputs.prompt-file }}" "${{ inputs.schema-file }}" "${{ inputs.tests-file }}" --provider "${{ inputs.provider }}" --output-format "${{ inputs.output-format }}" $MODEL_ARGS 2>&1 | tee promptguard-output/validation.txt
+        promptguard validate "${{ inputs.prompt-file }}" "${{ inputs.schema-file }}" "${{ inputs.tests-file }}" --provider "${{ inputs.provider }}" --output-format "${{ inputs.output-format }}" "${MODEL_ARGS[@]}" 2>&1 | tee promptguard-output/validation.txt
         echo "validation_result<<EOF" >> $GITHUB_OUTPUT
         cat promptguard-output/validation.txt >> $GITHUB_OUTPUT
         echo "EOF" >> $GITHUB_OUTPUT

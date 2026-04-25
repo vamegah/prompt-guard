@@ -2,131 +2,69 @@
 
 ## Summary
 
-PromptGuard has been fully implemented as production-ready with the following enhancements:
+PromptGuard has been moved closer to production readiness across the CLI, GitHub Action, backend services, frontend build, and verification tooling. The current readiness status is tracked in [docs/tasks/production-readiness-implementation.md](docs/tasks/production-readiness-implementation.md).
 
-### 1. CLI Improvements
+## Implemented Improvements
 
-#### Flexible Argument Handling
-- **Before**: Required named flags (`--prompt`, `--schema`, `--tests`)
-- **After**: Supports both positional and named arguments
-  ```bash
-  # Positional usage
-  promptguard validate prompt.txt schema.json tests.json
-  
-  # Named flags usage
-  promptguard validate --prompt prompt.txt --schema schema.json --tests tests.json
-  
-  # Mixed usage
-  promptguard validate prompt.txt --schema schema.json --tests tests.json
-  ```
+### CLI and Validation
 
-#### Enhanced Test Input Format Support
-- **Before**: Only supported JSON array of objects
-- **After**: Supports multiple formats:
-  - JSON array of strings: `["Hello", "Goodbye"]`
-  - JSON array of objects with `input` field: `[{"input": "Hello"}]`
-  - Structured objects: `[{"question": "Hello"}, {"description": "text"}]`
+- Supports positional and named validation arguments.
+- Supports JSON test input arrays containing strings, objects with `input`, objects with `input_data`, and structured objects.
+- Parses JSON-formatted LLM responses before validating object, array, numeric, boolean, and null schemas.
+- Reports clear validation errors when a structured response is not valid JSON.
+- Includes text, JSON, and JUnit report formats.
 
-### 2. GitHub Action Integration
+### GitHub Action
 
-#### New GitHub Action
-- **File**: `.github/actions/promptguard-validation/action.yml`
-- **Features**:
-  - Configurable inputs (prompt file, schema file, tests file, provider, model)
-  - Automatic PR comment posting with validation results
-  - Support for both OpenAI and Anthropic LLMs
-  - Secure secret management (via GitHub secrets)
+- Adds a composite PromptGuard validation action.
+- Runs validation on pull requests.
+- Accepts OpenAI and Anthropic API keys through GitHub secrets.
+- Posts validation output as a PR comment.
+- Preserves CLI failure status through the output capture pipeline.
 
-#### Workflow for PR Validation
-- **File**: `.github/workflows/promptguard-pr-validation.yml`
-- **Behavior**:
-  - Automatically runs on pull request events
-  - Posts validation results as PR comments
-  - Fails workflow if validation fails
+### Backend Services
 
-### 3. Dependency Management
+- Stabilized service test imports for the multiple backend services that each expose an `app` package.
+- Fixed LLM gateway and validation-engine endpoint test isolation.
+- Fixed prompt-manager repository mocks so endpoint tests do not unexpectedly hit a real database.
+- Fixed prompt-manager `Tag` mapper relationship setup.
+- Fixed date-sensitive billing rollup test data.
 
-#### Fixed Package Installation
-- **Before**: Used broken URI `file://localhost/${PWD}/../shared`
-- **After**: Uses proper `pathlib.Path.as_uri()` for reliable installs
+### Frontend
 
-#### Added Test Dependencies
-- Added `pytest-asyncio==0.21.1` to support async test execution
+- Added Vite environment typings.
+- Added frontend-local form dependencies required by the app.
+- Updated CI to run the frontend production build instead of missing lint/test scripts.
 
-### 4. Documentation Updates
+### Documentation
 
-#### CLI README
-- Updated usage examples to show both positional and named arguments
-- Added supported test input formats
-- Improved clarity on optional parameters
+- Fixed README encoding artifacts.
+- Fixed source-install command typo.
+- Added a task tracker with acceptance criteria and verification commands.
 
-#### Getting Started Guide
-- Updated to show simple positional argument usage
-- Added complete example with prompt, schema, and tests
-- Clarified file format requirements
+## Installation From Source
 
-#### Main README
-- Added reference to GitHub Action workflow
-- Updated CLI quick start command
-- Added action usage example
-
-### 5. Sample Files
-
-Created `backend/cli/sample/` directory with:
-- `prompt.txt`: Translation prompt with `{{input}}` placeholder
-- `schema.json`: Simple string schema validation
-- `tests.json`: Array of test strings for validation
-
-### 6. Code Quality Improvements
-
-#### Pydantic V2 Compatibility
-- Fixed `PromptTemplate` to use `@model_validator` instead of deprecated `@root_validator`
-- Fixed type annotation from `any` to `Any`
-- Updated metadata field to use proper type hints
-
-#### Missing Module Resolution
-- Created `backend/shared/promptguard_shared/validation/base.py` with `ValidationResult` class
-- Fixed import chain for schema validation
-
-#### Async Context Handling
-- Added `_run_async()` helper in CLI to handle both normal and pytest-asyncio contexts
-- Ensures CLI works in both command-line and test environments
-
-### 7. Test Coverage
-
-#### New Tests
-- `test_validate_command_with_positional_args`: Validates positional argument usage
-- `test_load_test_inputs_supports_string_array`: Validates string array test input format
-
-#### Test Suite Status
-- All 3 CLI tests pass
-- Proper mocking of LLM calls to avoid external dependencies
-
-## Installation & Usage
-
-### Install from Source
 ```bash
 git clone https://github.com/promptguard/promptguard.git
 cd promptguard/backend/cli
-pip install -e ..share
+pip install -e ../shared
 pip install -e .
 ```
 
-### Quick Start
+## Quick Start
+
 ```bash
-# Set API key
 export OPENAI_API_KEY=sk-...
 
-# Create your files
 echo 'Translate to French: {{input}}' > prompt.txt
 echo '{"type": "string"}' > schema.json
 echo '["Hello", "Goodbye"]' > tests.json
 
-# Validate
 promptguard validate prompt.txt schema.json tests.json
 ```
 
-### Use in GitHub Actions
+## Use In GitHub Actions
+
 ```yaml
 name: PR Validation
 on: [pull_request]
@@ -138,31 +76,25 @@ jobs:
       - uses: ./.github/actions/promptguard-validation
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
           prompt-file: prompt.txt
           schema-file: schema.json
           tests-file: tests.json
           provider: openai
 ```
 
-## Production Readiness Checklist
+## Current Verification Status
 
-✅ CLI tool works with positional and named arguments
-✅ Supports OpenAI and Anthropic API keys
-✅ Handles multiple test input formats
-✅ JSON, text, and JUnit report formats
-✅ GitHub Action with PR comments
-✅ Proper error handling and exit codes
-✅ Comprehensive documentation
-✅ All tests passing
-✅ Pydantic V2 compatible
-✅ Sample files for quick start
-✅ Secure secret management
-✅ Async validation support
+- `pytest -q` passes.
+- `pytest -q backend\cli\tests` passes.
+- `cmd /c npm run build --prefix frontend` passes.
+- `docker compose -f backend\docker-compose.yml config` renders.
+- Full Docker service startup and Helm rendering still need local environment verification.
 
-## Next Steps
+## Remaining Production Work
 
-- Deploy to production CI/CD pipelines
-- Publish to PyPI for pip install
-- Monitor validation runs via analytics
-- Expand provider support (Azure OpenAI, Vertex AI)
-- Add advanced validation features (semantic, hallucination detection)
+- Verify Docker Compose service startup and health endpoints.
+- Verify Helm template rendering on a machine with Helm installed.
+- Resolve or explicitly accept frontend npm audit findings.
+- Validate the PR comment flow in a real pull request.

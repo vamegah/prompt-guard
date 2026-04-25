@@ -43,11 +43,30 @@ async def test_invoice_rollup_creates_invoices():
     async with SessionLocal() as db:
         org_a = UUID("11111111-1111-1111-1111-111111111111")
         org_b = UUID("22222222-2222-2222-2222-222222222222")
+        occurred_at = datetime(2026, 3, 15, tzinfo=timezone.utc)
         db.add_all(
             [
-                UsageEvent(org_id=org_a, event_type="llm_call", units=3, cost_cents=15),
-                UsageEvent(org_id=org_a, event_type="llm_call", units=2, cost_cents=10),
-                UsageEvent(org_id=org_b, event_type="llm_call", units=1, cost_cents=5),
+                UsageEvent(
+                    org_id=org_a,
+                    event_type="llm_call",
+                    units=3,
+                    cost_cents=15,
+                    created_at=occurred_at,
+                ),
+                UsageEvent(
+                    org_id=org_a,
+                    event_type="llm_call",
+                    units=2,
+                    cost_cents=10,
+                    created_at=occurred_at,
+                ),
+                UsageEvent(
+                    org_id=org_b,
+                    event_type="llm_call",
+                    units=1,
+                    cost_cents=5,
+                    created_at=occurred_at,
+                ),
             ]
         )
         await db.commit()

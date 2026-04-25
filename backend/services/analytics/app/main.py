@@ -1,7 +1,7 @@
 import time
 from fastapi import FastAPI, Depends
 from fastapi.responses import Response
-from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, Counter, Histogram
+from prometheus_client import REGISTRY, generate_latest, CONTENT_TYPE_LATEST, Counter, Histogram
 from typing import List
 
 from app.schemas.metrics import ValidationMetric
@@ -11,14 +11,20 @@ from app.core.security import verify_internal_key
 
 app = FastAPI(title="Analytics Service", version="0.1.0")
 metrics_store: List[ValidationMetric] = []
-INGEST_COUNTER = Counter(
-    "analytics_ingest_total",
-    "Total metrics ingested",
-)
-SUMMARY_LATENCY = Histogram(
-    "analytics_summary_latency_seconds",
-    "Summary endpoint latency in seconds",
-)
+if "analytics_ingest_total" in REGISTRY._names_to_collectors:
+    INGEST_COUNTER = REGISTRY._names_to_collectors["analytics_ingest_total"]
+else:
+    INGEST_COUNTER = Counter(
+        "analytics_ingest_total",
+        "Total metrics ingested",
+    )
+if "analytics_summary_latency_seconds" in REGISTRY._names_to_collectors:
+    SUMMARY_LATENCY = REGISTRY._names_to_collectors["analytics_summary_latency_seconds"]
+else:
+    SUMMARY_LATENCY = Histogram(
+        "analytics_summary_latency_seconds",
+        "Summary endpoint latency in seconds",
+    )
 
 
 @app.post("/api/v1/metrics", dependencies=[Depends(verify_internal_key)])

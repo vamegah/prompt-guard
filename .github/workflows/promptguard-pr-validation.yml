@@ -8,6 +8,9 @@ jobs:
   promptguard-validation:
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
       - name: Run PromptGuard validation action
         uses: ./.github/actions/promptguard-validation
         with:
@@ -17,3 +20,5 @@ jobs:
           tests-file: tests.json
           provider: openai
           output-format: text
+          openai-api-key: ${{ secrets.OPENAI_API_KEY }}
+          anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}

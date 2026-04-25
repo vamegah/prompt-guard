@@ -4,7 +4,7 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID, JSONB
 from sqlalchemy.orm import relationship
 
 from app.db.base import Base
-from app.models.tag import prompt_tags_association
+from app.models.tag import Tag, prompt_tags_association
 
 
 class Prompt(Base):
@@ -20,4 +20,4 @@ class Prompt(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
-    tags = relationship("Tag", secondary=prompt_tags_association, back_populates="prompts")
+    tags = relationship(Tag, secondary=prompt_tags_association, back_populates="prompts")
