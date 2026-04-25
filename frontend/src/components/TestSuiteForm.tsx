@@ -5,7 +5,12 @@ import { z } from 'zod';
 import { useTestSuite, useCreateTestSuite, useUpdateTestSuite } from '../hooks/useTestSuites';
 import { usePrompts } from '../hooks/usePrompts';
 import { useSchemas } from '../hooks/useSchemas';
-import Select from 'react-select';
+import Select, { MultiValue } from 'react-select';
+
+type SelectOption = {
+  value: string;
+  label: string;
+};
 
 const testInputSchema = z.object({
   input_data: z.string().min(1, 'Input data is required').refine(
@@ -77,8 +82,8 @@ const TestSuiteForm = ({ testSuiteId, onClose, onSuccess }: TestSuiteFormProps) 
     name: 'test_inputs',
   });
 
-  const promptOptions = prompts?.map(p => ({ value: p.id, label: p.name })) || [];
-  const schemaOptions = schemas?.map(s => ({ value: s.id, label: s.name })) || [];
+  const promptOptions: SelectOption[] = prompts?.map(p => ({ value: p.id, label: p.name })) || [];
+  const schemaOptions: SelectOption[] = schemas?.map(s => ({ value: s.id, label: s.name })) || [];
 
   useEffect(() => {
     if (existingTestSuite) {
@@ -151,7 +156,9 @@ const TestSuiteForm = ({ testSuiteId, onClose, onSuccess }: TestSuiteFormProps) 
                   instanceId="prompts-select"
                   options={promptOptions}
                   value={promptOptions.filter(option => field.value?.includes(option.value))}
-                  onChange={selected => field.onChange(selected ? selected.map(option => option.value) : [])}
+                  onChange={(selected: MultiValue<SelectOption>) =>
+                    field.onChange(selected.map((option: SelectOption) => option.value))
+                  }
                   className="mt-1"
                   classNamePrefix="select"
                 />
@@ -171,7 +178,9 @@ const TestSuiteForm = ({ testSuiteId, onClose, onSuccess }: TestSuiteFormProps) 
                   instanceId="schemas-select"
                   options={schemaOptions}
                   value={schemaOptions.filter(option => field.value?.includes(option.value))}
-                  onChange={selected => field.onChange(selected ? selected.map(option => option.value) : [])}
+                  onChange={(selected: MultiValue<SelectOption>) =>
+                    field.onChange(selected.map((option: SelectOption) => option.value))
+                  }
                   className="mt-1"
                   classNamePrefix="select"
                 />

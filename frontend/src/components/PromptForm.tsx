@@ -4,7 +4,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { usePrompt, useCreatePrompt, useUpdatePrompt } from '../hooks/usePrompts';
 import { PromptCreate } from '../types';
-import Select from 'react-select';
+import Select, { MultiValue } from 'react-select';
+
+type SelectOption = {
+  value: string;
+  label: string;
+};
 
 const promptSchema = z.object({
   name: z.string().min(1, 'Name is required'),
@@ -31,7 +36,7 @@ const PromptForm = ({ promptId, onClose, onSuccess }: PromptFormProps) => {
 
   // For demonstration, we'll use mock data for tags.
   // In a real app, this would come from a hook like `useTags()`.
-  const tagOptions = [
+  const tagOptions: SelectOption[] = [
     { value: 'translator', label: 'Translator' },
     { value: 'summarizer', label: 'Summarizer' },
     { value: 'experimental', label: 'Experimental' },
@@ -128,7 +133,9 @@ const PromptForm = ({ promptId, onClose, onSuccess }: PromptFormProps) => {
                     instanceId="prompt-tags-select"
                     options={tagOptions}
                     value={tagOptions.filter(option => field.value?.includes(option.value))}
-                    onChange={selected => field.onChange(selected ? selected.map(option => option.value) : [])}
+                    onChange={(selected: MultiValue<SelectOption>) =>
+                      field.onChange(selected.map((option: SelectOption) => option.value))
+                    }
                     className="mt-1"
                     classNamePrefix="select"
                   />
