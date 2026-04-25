@@ -7,18 +7,26 @@ on:
 jobs:
   promptguard-validation:
     runs-on: ubuntu-latest
+    env:
+      OPENAI_API_KEY_PRESENT: ${{ secrets.OPENAI_API_KEY != '' }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Run PromptGuard validation action
+        if: env.OPENAI_API_KEY_PRESENT == 'true'
         uses: ./.github/actions/promptguard-validation
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
-          prompt-file: prompt.txt
-          schema-file: schema.json
-          tests-file: tests.json
+          prompt-file: backend/cli/sample/prompt.txt
+          schema-file: backend/cli/sample/schema.json
+          tests-file: backend/cli/sample/tests.json
           provider: openai
           output-format: text
           openai-api-key: ${{ secrets.OPENAI_API_KEY }}
           anthropic-api-key: ${{ secrets.ANTHROPIC_API_KEY }}
+
+      - name: Skip PromptGuard validation without provider key
+        if: env.OPENAI_API_KEY_PRESENT != 'true'
+        run: |
+          echo "Skipping PromptGuard PR validation because OPENAI_API_KEY is not configured."

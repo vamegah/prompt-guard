@@ -1,6 +1,6 @@
+import importlib
 import sys
 from pathlib import Path
-import importlib
 
 import pytest
 from unittest.mock import AsyncMock
@@ -14,10 +14,12 @@ if base_path in sys.path:
     sys.path.remove(base_path)
 sys.path.insert(0, base_path)
 
-# The context shows endpoint files in the 'models' directory, which is unusual.
-# We'll follow that structure for imports. If you move them to `app/api/endpoints`,
-# you would update these imports accordingly.
-from app.models import prompts, schemas, test_suites
+def _endpoint_modules():
+    return (
+        importlib.import_module("app.models.prompts"),
+        importlib.import_module("app.models.schemas"),
+        importlib.import_module("app.models.test_suites"),
+    )
 
 
 @pytest.fixture(scope="session")
@@ -26,6 +28,7 @@ def app() -> FastAPI:
     Create a FastAPI app instance for testing, including all routers.
     This app is shared across all tests in a session for efficiency.
     """
+    prompts, schemas, test_suites = _endpoint_modules()
     test_app = FastAPI(title="Test App")
     test_app.include_router(prompts.router, prefix="/prompts", tags=["Prompts"])
     test_app.include_router(schemas.router, prefix="/schemas", tags=["Schemas"])
@@ -56,11 +59,12 @@ def mock_repo_factory(monkeypatch):
         mock_repo = AsyncMock(spec=repo_spec)
         module_path, attr_name = repo_class_path.rsplit(".", 1)
         target_module = importlib.import_module(module_path)
-        # The lambda ensures that when the endpoint code calls `Repository(db)`,
-        # it gets our mock instance instead of creating a new real one.
-        factory = lambda db_session: mock_repo
+
+        def factory(db_session):
+            return mock_repo
+
         monkeypatch.setattr(target_module, attr_name, factory)
-        for mounted_module in (prompts, schemas, test_suites):
+        for mounted_module in _endpoint_modules():
             if hasattr(mounted_module, attr_name):
                 monkeypatch.setattr(mounted_module, attr_name, factory)
         return mock_repo
