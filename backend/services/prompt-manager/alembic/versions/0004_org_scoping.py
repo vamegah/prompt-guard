@@ -24,7 +24,13 @@ def upgrade() -> None:
             "INSERT INTO organizations (id, name, created_at) "
             "VALUES (:id, 'Default', now()) "
             "ON CONFLICT (id) DO NOTHING"
-        ).bindparams(id=DEFAULT_ORG_ID)
+        ).bindparams(
+            sa.bindparam(
+                "id",
+                value=DEFAULT_ORG_ID,
+                type_=postgresql.UUID(as_uuid=False),
+            )
+        )
     )
 
     op.add_column(

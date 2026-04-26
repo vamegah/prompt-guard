@@ -197,6 +197,25 @@ services:
     networks:
       - promptguard-network
 
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
+        VITE_API_KEY: ${API_KEY:-local-api-key}
+        VITE_USER_ID: ${LOCAL_USER_ID:-00000000-0000-0000-0000-000000000001}
+        VITE_ORG_ID: ${LOCAL_ORG_ID:-00000000-0000-0000-0000-000000000000}
+        VITE_ROLE: ${LOCAL_ROLE:-admin}
+    image: promptguard/frontend:local
+    container_name: promptguard-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      prompt-manager:
+        condition: service_healthy
+    networks:
+      - promptguard-network
+
   backup:
     image: postgres:15-alpine
     container_name: promptguard-backup

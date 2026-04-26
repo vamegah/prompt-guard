@@ -47,6 +47,7 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-promptguard}:${POSTGRES_PASSWORD:-promptguard}@postgres:5432/${POSTGRES_DB:-promptguard}
       REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost:3000"]}
+      AUTO_CREATE_TABLES: ${AUTO_CREATE_TABLES:-true}
       API_KEY: ${API_KEY:-local-api-key}
       MASTER_KEY: ${MASTER_KEY:-bM0_lDGcE4JKmlriOaJZf3Dg1mujn2v0Im4QLuDxtmk=}
       INTERNAL_API_KEY: ${INTERNAL_API_KEY:-local-internal-key}
@@ -191,6 +192,24 @@ services:
     volumes:
       - ./services/analytics:/app
     command: uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
+    networks:
+      - promptguard-network
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8000/api/v1}
+        VITE_API_KEY: ${API_KEY:-local-api-key}
+        VITE_USER_ID: ${LOCAL_USER_ID:-00000000-0000-0000-0000-000000000001}
+        VITE_ORG_ID: ${LOCAL_ORG_ID:-00000000-0000-0000-0000-000000000000}
+        VITE_ROLE: ${LOCAL_ROLE:-admin}
+    image: promptguard/frontend:local
+    container_name: promptguard-frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - prompt-manager
     networks:
       - promptguard-network
 
